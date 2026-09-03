@@ -59,11 +59,16 @@
   .empty-msg{color:var(--text-faint);font-size:13px;text-align:center;padding:20px 0;}
   .unreachable-msg{color:var(--orange);font-size:13px;text-align:center;padding:20px 0;font-weight:600;}
 
-  .history{display:flex;flex-direction:column;gap:8px;}
-  .history-item{display:flex;justify-content:space-between;align-items:center;background:var(--elevated);border-radius:8px;padding:10px 14px;font-size:12px;}
-  .history-time{font-family:var(--mono);color:var(--text-dim);}
-  .history-dots{display:flex;gap:4px;}
-  .history-dots .dot{width:8px;height:8px;}
+  .history{display:flex;flex-direction:column;gap:10px;}
+  .history-item{background:var(--elevated);border-radius:8px;padding:12px 14px;}
+  .history-item__header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+  .history-time{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+  .history-mode{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-faint);background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:999px;}
+  .history-lines{display:flex;flex-direction:column;gap:6px;}
+  .history-line{display:flex;align-items:center;gap:10px;font-size:13px;}
+  .history-line .dot{width:8px;height:8px;}
+  .history-line-carrier{font-weight:600;}
+  .history-line-mbps{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin-left:auto;}
 
   h2{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin:0 0 14px;}
 </style>
@@ -97,7 +102,7 @@
     </div>
 
     <div class="card">
-      <h2>Historique (5 derniers)</h2>
+      <h2>Historique (10 derniers)</h2>
       <div class="history" id="history">
         <p class="empty-msg">Aucun check pour l'instant.</p>
       </div>
@@ -256,9 +261,11 @@ function renderLines(lines) {
   `).join("");
 }
 
+const MODE_LABELS = { peplink: "Peplink", wifi: "Wifi" };
+
 async function loadHistory() {
   try {
-    const q = query(collection(db, "peplink_history"), orderBy("createdAt", "desc"), limit(5));
+    const q = query(collection(db, "peplink_history"), orderBy("createdAt", "desc"), limit(10));
     const snap = await getDocs(q);
     if (snap.empty) {
       $("history").innerHTML = `<p class="empty-msg">Aucun check pour l'instant.</p>`;
@@ -267,9 +274,24 @@ async function loadHistory() {
     $("history").innerHTML = snap.docs.map((d) => {
       const h = d.data();
       const date = h.createdAt?.toDate?.();
-      const timeLabel = date ? date.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
-      const dots = (h.lines || []).map((l) => `<span class="dot ${l.color}"></span>`).join("");
-      return `<div class="history-item"><span class="history-time">${timeLabel}</span><span class="history-dots">${dots}</span></div>`;
+      const timeLabel = date ? date.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
+      const modeLabel = MODE_LABELS[h.mode] || h.mode || "-";
+      const lines = (h.lines || []).map((l) => `
+        <div class="history-line">
+          <span class="dot ${l.color}"></span>
+          <span class="history-line-carrier">${l.carrier}</span>
+          ${typeof l.mbps === "number" ? `<span class="history-line-mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+        </div>
+      `).join("") || `<p class="empty-msg" style="padding:4px 0;">Aucune ligne.</p>`;
+      return `
+        <div class="history-item">
+          <div class="history-item__header">
+            <span class="history-time">${timeLabel}</span>
+            <span class="history-mode">${modeLabel}</span>
+          </div>
+          <div class="history-lines">${lines}</div>
+        </div>
+      `;
     }).join("");
   } catch (err) {
     console.warn("[regis] historique impossible :", err.message);
