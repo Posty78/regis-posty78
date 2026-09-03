@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Widget Regis - Posty78</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:transparent;}
+  body{font-family:"Rajdhani",sans-serif;overflow:hidden;}
+
+  .hud-peplink{
+    display:inline-flex; flex-direction:column; align-items:stretch; gap:10px;
+    background:rgba(10,10,10,0.85); border:1px solid rgba(255,255,255,0.14);
+    border-radius:10px; padding:16px 26px;
+    opacity:0; transition:opacity .35s ease;
+  }
+  .hud-peplink.is-visible{ opacity:1; }
+  .hud-peplink__title{ font-family:"Rajdhani",sans-serif; font-weight:700; font-size:15px; letter-spacing:0.2em; color:#fff; text-align:center; }
+  .hud-peplink__lines{ display:flex; flex-direction:column; gap:8px; margin-top:2px; }
+  .hud-peplink__line{ display:flex; align-items:center; gap:10px; }
+  .hud-peplink__dot{ width:12px; height:12px; border-radius:50%; box-shadow:0 0 6px currentColor; flex-shrink:0; }
+  .hud-peplink__dot--green{ background:#2ecc40; color:#2ecc40; }
+  .hud-peplink__dot--orange{ background:#ffab00; color:#ffab00; }
+  .hud-peplink__dot--red{ background:#e0263f; color:#e0263f; }
+  .hud-peplink__info{ display:flex; align-items:baseline; gap:10px; min-width:0; }
+  .hud-peplink__carrier{ font-family:"Teko",sans-serif; font-weight:600; font-size:20px; color:#fff; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px; }
+  .hud-peplink__mbps{ font-family:"Rajdhani",sans-serif; font-weight:600; font-size:13px; color:rgba(255,255,255,0.6); white-space:nowrap; }
+  .hud-peplink__empty{ font-family:"Teko",sans-serif; font-size:18px; color:rgba(255,255,255,0.6); text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="hud-peplink" id="widget">
+  <div class="hud-peplink__title">RÉSEAU</div>
+  <div class="hud-peplink__lines" id="lines"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDRwbfhM7zzQWH9md8DzwbtRsEe1G4Lh30",
+  authDomain: "posty78-overlay.firebaseapp.com",
+  projectId: "posty78-overlay",
+  storageBucket: "posty78-overlay.firebasestorage.app",
+  messagingSenderId: "815738211609",
+  appId: "1:815738211609:web:833120a585f5d9e5a5c988",
+};
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getFirestore(app);
+
+// Widget de supervision reseau, integre comme n'importe quel "Widget externe
+// (URL)" de l'overlay (meme mecanisme que Roue/Vote/Sondage/etc.) - invisible
+// par defaut, ne s'affiche que sur declenchement reel (!regis / bouton
+// regis.posty78.fr), pendant EXACTEMENT 15s, ou en boucle demo via ?demo=1
+// (bascule "Demo: ON/OFF" standard des widgets externes de l'editeur).
+const VISIBLE_DURATION_MS = 15000;
+const DEMO_STEP_MS = 3600;
+const DEMO_SCENARIOS = [
+  { lines: [] },
+  { lines: [
+    { carrier: "Bouygues", mbps: null, color: "red" },
+    { carrier: "Orange", mbps: null, color: "red" },
+    { carrier: "SFR", mbps: null, color: "red" },
+    { carrier: "Free", mbps: null, color: "red" },
+  ]},
+  { lines: [
+    { carrier: "Bouygues", mbps: 1.2, color: "orange" },
+    { carrier: "Orange", mbps: 0.4, color: "orange" },
+    { carrier: "SFR", mbps: 2.8, color: "red" },
+    { carrier: "Free", mbps: null, color: "red" },
+  ]},
+  { lines: [
+    { carrier: "Bouygues", mbps: 6.2, color: "green" },
+    { carrier: "Orange", mbps: 4.8, color: "green" },
+    { carrier: "SFR", mbps: 9.1, color: "orange" },
+    { carrier: "Free", mbps: 3.5, color: "green" },
+  ]},
+  { lines: [
+    { carrier: "Bouygues", mbps: 6.2, color: "green" },
+    { carrier: "Orange", mbps: 4.8, color: "green" },
+    { carrier: "SFR", mbps: 9.1, color: "green" },
+    { carrier: "Free", mbps: 3.5, color: "green" },
+    { carrier: "Données mobile (Free)", mbps: 4.4, color: "orange" },
+  ]},
+  { lines: [
+    { carrier: "Bouygues", mbps: 6.2, color: "green" },
+    { carrier: "Orange", mbps: 4.8, color: "green" },
+    { carrier: "SFR", mbps: 9.1, color: "green" },
+    { carrier: "Free", mbps: 3.5, color: "green" },
+    { carrier: "Données mobile (Free)", mbps: 8.9, color: "green" },
+    { carrier: "Starlink", mbps: 92.3, color: "green" },
+  ]},
+  { lines: [{ carrier: "Erreur: login Peplink injoignable", mbps: null, color: "red" }] },
+];
+
+const el = document.getElementById("widget");
+const linesEl = document.getElementById("lines");
+
+let lastTriggeredAt = null;
+let lastDemoTriggeredAt = null;
+let hideTimer = null;
+let demoInterval = null;
+let isDemoActive = false;
+
+function render(lines) {
+  if (!lines || !lines.length) {
+    linesEl.innerHTML = `<div class="hud-peplink__empty">En attente du téléphone…</div>`;
+    return;
+  }
+  linesEl.innerHTML = lines.map((l) => `
+    <div class="hud-peplink__line">
+      <span class="hud-peplink__dot hud-peplink__dot--${l.color}"></span>
+      <span class="hud-peplink__info">
+        <span class="hud-peplink__carrier">${l.carrier}</span>
+        ${typeof l.mbps === "number" ? `<span class="hud-peplink__mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+      </span>
+    </div>
+  `).join("");
+}
+
+function show() {
+  isDemoActive = false;
+  clearInterval(demoInterval);
+  el.classList.add("is-visible");
+  render([]);
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => el.classList.remove("is-visible"), VISIBLE_DURATION_MS);
+}
+
+function playDemoOnce(onDone) {
+  isDemoActive = true;
+  clearTimeout(hideTimer);
+  clearInterval(demoInterval);
+  el.classList.add("is-visible");
+
+  let step = 0;
+  render(DEMO_SCENARIOS[step].lines);
+  demoInterval = setInterval(() => {
+    step++;
+    if (step >= DEMO_SCENARIOS.length) {
+      clearInterval(demoInterval);
+      if (onDone) onDone();
+      return;
+    }
+    render(DEMO_SCENARIOS[step].lines);
+  }, DEMO_STEP_MS);
+}
+
+// ?demo=1 (bascule "Demo: ON/OFF" de l'editeur, widget externe) : boucle en
+// continu tant que le parametre est present, pour laisser le temps de
+// positionner le widget dans l'editeur.
+if (new URLSearchParams(location.search).get("demo") === "1") {
+  const loop = () => playDemoOnce(loop);
+  loop();
+} else {
+  onSnapshot(
+    doc(db, "state", "peplink"),
+    (snap) => {
+      const data = snap.data();
+
+      const demoTriggeredAt = data?.demoTriggeredAt?.toMillis?.() ?? null;
+      if (demoTriggeredAt && demoTriggeredAt !== lastDemoTriggeredAt) {
+        lastDemoTriggeredAt = demoTriggeredAt;
+        playDemoOnce(() => {
+          el.classList.remove("is-visible");
+          isDemoActive = false;
+        });
+        return;
+      }
+
+      const triggeredAt = data?.triggeredAt?.toMillis?.() ?? null;
+      if (!triggeredAt || triggeredAt === lastTriggeredAt) return;
+      lastTriggeredAt = triggeredAt;
+      show();
+    },
+    (err) => console.warn("[regis-widget] lecture declenchement impossible :", err.message)
+  );
+
+  onSnapshot(
+    doc(db, "state", "peplink_result"),
+    (snap) => {
+      if (isDemoActive) return;
+      const data = snap.data();
+      if (!data) return;
+      const updatedAt = data.updatedAt?.toMillis?.() ?? 0;
+      if (lastTriggeredAt && updatedAt < lastTriggeredAt) return;
+      render(data.lines);
+    },
+    (err) => console.warn("[regis-widget] lecture resultat impossible :", err.message)
+  );
+}
+</script>
+
+</body>
+</html>
