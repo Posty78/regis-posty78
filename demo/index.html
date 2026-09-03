@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Démo Widget Regis - Posty78</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23131513' stroke='%2353fc18' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2353fc18'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@500;600&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:#121416; color:#f0f0ee; font-family:"Rajdhani",sans-serif;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:900px; margin:0 auto; padding:32px 20px 48px; }
+  .head{ text-align:center; margin-bottom:20px; }
+  .eyebrow{ font-size:12px; letter-spacing:0.18em; text-transform:uppercase; color:#9a9d9f; font-weight:700; }
+  h1{ font-size:24px; font-weight:700; margin:6px 0 0; }
+  .frame{
+    position:relative; width:100%; aspect-ratio:16/9; border-radius:14px; overflow:hidden;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(80,120,180,0.25), transparent 60%),
+      linear-gradient(160deg,#1c2530,#0a0d10 70%);
+    border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 50px -20px rgba(0,0,0,0.5);
+    margin-top:18px;
+  }
+
+  .hud-peplink{
+    position:absolute; top:6%; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; align-items:stretch; gap:0.8%;
+    background:rgba(10,10,10,0.85); border:1px solid rgba(255,255,255,0.14);
+    border-radius:0.8%; padding:1.4% 2.2%;
+    font-size:1.4vw;
+    opacity:0; transition:opacity .5s ease;
+  }
+  .hud-peplink.is-visible{ opacity:1; }
+  .hud-peplink__title{ font-family:"Rajdhani",sans-serif; font-weight:700; font-size:0.72em; letter-spacing:0.2em; color:#fff; text-align:center; }
+  .hud-peplink__lines{ display:flex; flex-direction:column; gap:0.5em; margin-top:0.4em; }
+  .hud-peplink__line{ display:flex; align-items:center; gap:0.6em; }
+  .hud-peplink__dot{ width:0.6em; height:0.6em; border-radius:50%; box-shadow:0 0 6px currentColor; flex-shrink:0; transition:background .4s ease, color .4s ease; }
+  .hud-peplink__dot--green{ background:#2ecc40; color:#2ecc40; }
+  .hud-peplink__dot--orange{ background:#ffab00; color:#ffab00; }
+  .hud-peplink__dot--red{ background:#e0263f; color:#e0263f; }
+  .hud-peplink__info{ display:flex; align-items:baseline; gap:0.6em; min-width:0; }
+  .hud-peplink__carrier{ font-family:"Teko",sans-serif; font-weight:600; font-size:1em; color:#fff; text-transform:uppercase; white-space:nowrap; }
+  .hud-peplink__mbps{ font-family:"Rajdhani",sans-serif; font-weight:600; font-size:0.68em; color:rgba(255,255,255,0.6); white-space:nowrap; }
+  .hud-peplink__empty{ font-family:"Teko",sans-serif; font-size:0.95em; color:rgba(255,255,255,0.6); text-align:center; padding:0.3em 0; }
+
+  .caption{ display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; }
+  .caption__text{ font-size:14px; color:#9a9d9f; min-width:280px; text-align:center; }
+  .dots{ display:flex; gap:6px; justify-content:center; margin-top:10px; }
+  .dots button{
+    width:7px; height:7px; border-radius:50%; border:none; padding:0; cursor:pointer;
+    background:rgba(255,255,255,0.15);
+  }
+  .dots button.active{ background:#9a9d9f; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="head">
+    <div class="eyebrow">Posty78 · Regis</div>
+    <h1>Démo du widget réseau (OBS)</h1>
+  </div>
+
+  <div class="frame">
+    <div class="hud-peplink" id="widget">
+      <div class="hud-peplink__title">RÉSEAU</div>
+      <div class="hud-peplink__lines" id="lines"></div>
+    </div>
+  </div>
+
+  <div class="caption">
+    <span class="caption__text" id="caption"></span>
+  </div>
+  <div class="dots" id="dots"></div>
+</div>
+
+<script>
+const scenarios = [
+  { label: "En attente du téléphone", lines: [] },
+  { label: "Connexion en cours (rouge)", lines: [
+    { carrier:"Bouygues", mbps:null, color:"red" },
+    { carrier:"Orange", mbps:null, color:"red" },
+    { carrier:"SFR", mbps:null, color:"red" },
+    { carrier:"Free", mbps:null, color:"red" },
+  ]},
+  { label: "Lignes qui s'établissent (orange)", lines: [
+    { carrier:"Bouygues", mbps:1.2, color:"orange" },
+    { carrier:"Orange", mbps:0.4, color:"orange" },
+    { carrier:"SFR", mbps:2.8, color:"red" },
+    { carrier:"Free", mbps:null, color:"red" },
+  ]},
+  { label: "4 lignes Peplink connectées", lines: [
+    { carrier:"Bouygues", mbps:6.2, color:"green" },
+    { carrier:"Orange", mbps:4.8, color:"green" },
+    { carrier:"SFR", mbps:9.1, color:"orange" },
+    { carrier:"Free", mbps:3.5, color:"green" },
+  ]},
+  { label: "+ Données mobile en secours", lines: [
+    { carrier:"Bouygues", mbps:6.2, color:"green" },
+    { carrier:"Orange", mbps:4.8, color:"green" },
+    { carrier:"SFR", mbps:9.1, color:"green" },
+    { carrier:"Free", mbps:3.5, color:"green" },
+    { carrier:"Données mobile (Free)", mbps:4.4, color:"orange" },
+  ]},
+  { label: "Tout au vert, Starlink branché", lines: [
+    { carrier:"Bouygues", mbps:6.2, color:"green" },
+    { carrier:"Orange", mbps:4.8, color:"green" },
+    { carrier:"SFR", mbps:9.1, color:"green" },
+    { carrier:"Free", mbps:3.5, color:"green" },
+    { carrier:"Données mobile (Free)", mbps:8.9, color:"green" },
+    { carrier:"Starlink", mbps:92.3, color:"green" },
+  ]},
+  { label: "Exemple de diagnostic d'erreur", lines: [
+    { carrier:"Erreur: login Peplink injoignable", mbps:null, color:"red" },
+  ]},
+];
+
+const widget = document.getElementById("widget");
+const linesEl = document.getElementById("lines");
+const captionEl = document.getElementById("caption");
+const dotsEl = document.getElementById("dots");
+let idx = 0;
+let timer = null;
+
+scenarios.forEach((s, i) => {
+  const b = document.createElement("button");
+  b.addEventListener("click", () => { show(i); restart(); });
+  dotsEl.appendChild(b);
+});
+
+function render(lines) {
+  if (!lines.length) {
+    linesEl.innerHTML = '<div class="hud-peplink__empty">En attente du téléphone…</div>';
+    return;
+  }
+  linesEl.innerHTML = lines.map(l => `
+    <div class="hud-peplink__line">
+      <span class="hud-peplink__dot hud-peplink__dot--${l.color}"></span>
+      <span class="hud-peplink__info">
+        <span class="hud-peplink__carrier">${l.carrier}</span>
+        ${typeof l.mbps === "number" ? `<span class="hud-peplink__mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+      </span>
+    </div>
+  `).join("");
+}
+
+function show(i) {
+  idx = i;
+  const s = scenarios[i];
+  widget.classList.remove("is-visible");
+  setTimeout(() => {
+    render(s.lines);
+    widget.classList.add("is-visible");
+  }, 180);
+  captionEl.textContent = s.label;
+  [...dotsEl.children].forEach((b, j) => b.classList.toggle("active", j === i));
+}
+
+function restart() {
+  clearInterval(timer);
+  timer = setInterval(() => show((idx + 1) % scenarios.length), 3600);
+}
+
+show(0);
+restart();
+</script>
+
+</body>
+</html>
