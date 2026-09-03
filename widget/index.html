@@ -67,6 +67,11 @@ const db = getFirestore(app);
 // regis.posty78.fr), pendant EXACTEMENT 15s, ou en boucle demo via ?demo=1
 // (bascule "Demo: ON/OFF" standard des widgets externes de l'editeur).
 const VISIBLE_DURATION_MS = 15000;
+// Le scan reel met du temps a remonter un vrai debit (interrogation du
+// Peplink) - on retarde l'apparition du widget pour ne montrer que des
+// donnees deja a jour, plutot qu'un affichage instantane qui se remplit
+// progressivement sous les yeux du public.
+const REVEAL_DELAY_MS = 10000;
 const DEMO_STEP_MS = 3600;
 const DEMO_SCENARIOS = [
   { lines: [] },
@@ -132,6 +137,7 @@ const linesEl = document.getElementById("lines");
 let lastTriggeredAt = null;
 let lastDemoTriggeredAt = null;
 let hideTimer = null;
+let revealTimer = null;
 let demoInterval = null;
 let isDemoActive = false;
 
@@ -185,15 +191,21 @@ function render(lines) {
 function show() {
   isDemoActive = false;
   clearInterval(demoInterval);
-  el.classList.add("is-visible");
-  render([]);
   clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => el.classList.remove("is-visible"), VISIBLE_DURATION_MS);
+  clearTimeout(revealTimer);
+  el.classList.remove("is-visible");
+  render([]); // gabarit tout rouge des maintenant (invisible), mis a jour en direct par les vrais resultats qui arrivent en arriere-plan
+
+  revealTimer = setTimeout(() => {
+    el.classList.add("is-visible");
+    hideTimer = setTimeout(() => el.classList.remove("is-visible"), VISIBLE_DURATION_MS);
+  }, REVEAL_DELAY_MS);
 }
 
 function playDemoOnce(onDone) {
   isDemoActive = true;
   clearTimeout(hideTimer);
+  clearTimeout(revealTimer);
   clearInterval(demoInterval);
   el.classList.add("is-visible");
 
