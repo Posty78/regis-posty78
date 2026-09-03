@@ -161,12 +161,27 @@ if (new URLSearchParams(location.search).get("demo") === "1") {
   const loop = () => playDemoOnce(loop);
   loop();
 } else {
+  let initialized = false;
+
   onSnapshot(
     doc(db, "state", "peplink"),
     (snap) => {
       const data = snap.data();
-
       const demoTriggeredAt = data?.demoTriggeredAt?.toMillis?.() ?? null;
+      const triggeredAt = data?.triggeredAt?.toMillis?.() ?? null;
+
+      // Au tout premier chargement de la page (ouverture de l'onglet/iframe),
+      // on ne fait que memoriser les declenchements deja presents dans
+      // Firestore (souvent d'anciens tests) sans reagir dessus - seuls les
+      // VRAIS nouveaux declenchements, arrivant apres ce point, affichent le
+      // widget.
+      if (!initialized) {
+        initialized = true;
+        lastDemoTriggeredAt = demoTriggeredAt;
+        lastTriggeredAt = triggeredAt;
+        return;
+      }
+
       if (demoTriggeredAt && demoTriggeredAt !== lastDemoTriggeredAt) {
         lastDemoTriggeredAt = demoTriggeredAt;
         playDemoOnce(() => {
@@ -176,7 +191,6 @@ if (new URLSearchParams(location.search).get("demo") === "1") {
         return;
       }
 
-      const triggeredAt = data?.triggeredAt?.toMillis?.() ?? null;
       if (!triggeredAt || triggeredAt === lastTriggeredAt) return;
       lastTriggeredAt = triggeredAt;
       show();
