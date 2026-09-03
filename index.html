@@ -135,7 +135,10 @@ const FIREBASE_CONFIG = {
 const REGIS_ADMIN_UID = "87gtn4etsRRljdoHqzcgF5Qkwtr1";
 
 const TRIGGER_TO_UNREACHABLE_MS = 5000;
-const RESET_AFTER_MS = 20000;
+// Doit rester alignee avec le widget reel : 10s invisible + 30s d'affichage
+// (REVEAL_DELAY_MS + VISIBLE_DURATION_MS dans widget/index.html) - sinon
+// cette page se reinitialise avant que le widget OBS ait fini de s'afficher.
+const RESET_AFTER_MS = 40000;
 
 // Doit rester synchronise avec DEMO_STEP_MS / DEMO_SCENARIOS dans peplink.js
 // (7 scenarios) - sert juste a savoir combien de temps desactiver le bouton.
