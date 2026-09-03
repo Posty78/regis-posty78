@@ -91,6 +91,7 @@
 
     <div class="card">
       <button class="btn" id="btnTrigger">📡 Lancer le scan réseau</button>
+      <button class="btn btn-ghost" id="btnDemo" style="width:100%;margin-top:10px;">🎬 Démo (simulation)</button>
       <div class="countdown" id="countdown"></div>
       <div class="lines" id="lines"></div>
     </div>
@@ -130,6 +131,11 @@ const REGIS_ADMIN_UID = "87gtn4etsRRljdoHqzcgF5Qkwtr1";
 
 const TRIGGER_TO_UNREACHABLE_MS = 5000;
 const RESET_AFTER_MS = 20000;
+
+// Doit rester synchronise avec DEMO_STEP_MS / DEMO_SCENARIOS dans peplink.js
+// (7 scenarios) - sert juste a savoir combien de temps desactiver le bouton.
+const DEMO_STEP_MS = 3600;
+const DEMO_SCENARIO_COUNT = 7;
 
 const app = initializeApp(FIREBASE_CONFIG);
 const auth = getAuth(app);
@@ -197,6 +203,22 @@ $("btnTrigger").addEventListener("click", async () => {
     $("btnTrigger").disabled = false;
     loadHistory();
   }, RESET_AFTER_MS);
+});
+
+$("btnDemo").addEventListener("click", async () => {
+  $("btnDemo").disabled = true;
+  $("btnTrigger").disabled = true;
+
+  await setDoc(doc(db, "state", "peplink"), { demoTriggeredAt: serverTimestamp() }, { merge: true });
+
+  $("countdown").textContent = "Démo en cours sur le widget OBS…";
+
+  const demoDurationMs = DEMO_STEP_MS * DEMO_SCENARIO_COUNT;
+  setTimeout(() => {
+    $("countdown").textContent = "";
+    $("btnDemo").disabled = false;
+    $("btnTrigger").disabled = false;
+  }, demoDurationMs);
 });
 
 function startCountdown(triggeredAtMs) {
