@@ -20,7 +20,12 @@
     opacity:0; transition:opacity .35s ease;
   }
   .hud-peplink.is-visible{ opacity:1; }
-  .hud-peplink__title{ font-family:"Rajdhani",sans-serif; font-weight:700; font-size:15px; letter-spacing:0.2em; color:#fff; text-align:center; text-shadow:0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6); }
+  .hud-peplink__title{
+    display:inline-block; align-self:center;
+    font-family:"Rajdhani",sans-serif; font-weight:700; font-size:15px; letter-spacing:0.2em; color:#fff; text-align:center;
+    text-shadow:0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.75); border-radius:6px; padding:4px 12px;
+  }
   .hud-peplink__lines{ display:flex; flex-direction:column; gap:10px; margin-top:2px; }
   .hud-peplink__line{ display:flex; align-items:center; gap:12px; }
   .hud-peplink__icon{ width:22px; height:22px; flex-shrink:0; filter:drop-shadow(0 0 4px currentColor) drop-shadow(0 1px 3px rgba(0,0,0,0.9)); transition:color .3s ease; }
