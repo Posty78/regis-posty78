@@ -66,7 +66,7 @@ const db = getFirestore(app);
 // par defaut, ne s'affiche que sur declenchement reel (!regis / bouton
 // regis.posty78.fr), pendant EXACTEMENT 15s, ou en boucle demo via ?demo=1
 // (bascule "Demo: ON/OFF" standard des widgets externes de l'editeur).
-const VISIBLE_DURATION_MS = 15000;
+const VISIBLE_DURATION_MS = 30000;
 // Le scan reel met du temps a remonter un vrai debit (interrogation du
 // Peplink) - on retarde l'apparition du widget pour ne montrer que des
 // donnees deja a jour, plutot qu'un affichage instantane qui se remplit
