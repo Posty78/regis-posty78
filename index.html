@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Regis - Supervision réseau - Posty78</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23131513' stroke='%2353fc18' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2353fc18'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1110; --card:#1a1d1b; --elevated:#242824; --border:rgba(255,255,255,0.1);
+    --text:#f0f3ef; --text-dim:#9aa398; --text-faint:#5f685d;
+    --green:#53fc18; --orange:#ffab00; --red:#e0263f;
+    --mono:'IBM Plex Mono',monospace; --body:'Inter',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--body); line-height:1.5;
+    min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:32px 20px 60px;}
+  h1{font-size:22px;font-weight:800;margin:0 0 4px;}
+  .eyebrow{font-family:var(--mono);font-size:11px;color:var(--green);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:24px;}
+
+  /* login */
+  #login{display:flex;flex-direction:column;gap:12px;max-width:320px;margin:80px auto 0;}
+  #login h1{text-align:center;}
+  .input{background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:12px 14px;font-size:14px;width:100%;}
+  .input:focus{outline:none;border-color:var(--green);}
+  .btn{background:var(--green);color:#08130a;border:none;font-weight:800;font-size:14px;padding:13px 20px;border-radius:999px;cursor:pointer;}
+  .btn:hover{opacity:0.92;}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text-dim);}
+  .error{color:var(--red);font-size:13px;display:none;}
+
+  /* main */
+  #app{display:none;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:28px;}
+
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;}
+
+  #btnTrigger{width:100%;padding:18px;font-size:16px;}
+  .countdown{text-align:center;font-family:var(--mono);font-size:13px;color:var(--text-dim);margin-top:12px;min-height:18px;}
+
+  .lines{display:flex;flex-direction:column;gap:10px;margin-top:16px;}
+  .line{display:flex;align-items:center;gap:12px;background:var(--elevated);border-radius:8px;padding:12px 14px;}
+  .dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+  .dot.green{background:var(--green);}
+  .dot.orange{background:var(--orange);}
+  .dot.red{background:var(--red);}
+  .line-info{display:flex;flex-direction:column;}
+  .line-carrier{font-weight:700;font-size:14px;}
+  .line-mbps{font-family:var(--mono);font-size:12px;color:var(--text-dim);}
+  .empty-msg{color:var(--text-faint);font-size:13px;text-align:center;padding:20px 0;}
+  .unreachable-msg{color:var(--orange);font-size:13px;text-align:center;padding:20px 0;font-weight:600;}
+
+  .history{display:flex;flex-direction:column;gap:8px;}
+  .history-item{display:flex;justify-content:space-between;align-items:center;background:var(--elevated);border-radius:8px;padding:10px 14px;font-size:12px;}
+  .history-time{font-family:var(--mono);color:var(--text-dim);}
+  .history-dots{display:flex;gap:4px;}
+  .history-dots .dot{width:8px;height:8px;}
+
+  h2{font-family:var(--mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-faint);margin:0 0 14px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div id="login">
+    <h1>🎯 Regis</h1>
+    <input type="email" id="loginEmail" class="input" placeholder="Email" autocomplete="username">
+    <input type="password" id="loginPassword" class="input" placeholder="Mot de passe" autocomplete="current-password">
+    <button class="btn" id="btnLogin">Connexion</button>
+    <p class="error" id="loginError">Identifiants incorrects ou accès non autorisé.</p>
+  </div>
+
+  <div id="app">
+    <div class="topbar">
+      <div>
+        <div class="eyebrow">Posty78</div>
+        <h1>🎯 Regis</h1>
+      </div>
+      <button class="btn btn-ghost" id="btnLogout" style="padding:8px 16px;font-size:12px;">Déconnexion</button>
+    </div>
+
+    <div class="card">
+      <button class="btn" id="btnTrigger">📡 Lancer le scan réseau</button>
+      <div class="countdown" id="countdown"></div>
+      <div class="lines" id="lines"></div>
+    </div>
+
+    <div class="card">
+      <h2>Historique (5 derniers)</h2>
+      <div class="history" id="history">
+        <p class="empty-msg">Aucun check pour l'instant.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, setDoc, serverTimestamp, onSnapshot,
+  collection, query, orderBy, limit, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDRwbfhM7zzQWH9md8DzwbtRsEe1G4Lh30",
+  authDomain: "posty78-overlay.firebaseapp.com",
+  projectId: "posty78-overlay",
+  storageBucket: "posty78-overlay.firebasestorage.app",
+  messagingSenderId: "815738211609",
+  appId: "1:815738211609:web:833120a585f5d9e5a5c988",
+};
+
+// UID du compte dedie cree specialement pour cette page (different des 2 admins
+// de l'overlay) - voir Article "Regis" des regles Firestore de posty78-overlay.
+const REGIS_ADMIN_UID = "87gtn4etsRRljdoHqzcgF5Qkwtr1";
+
+const TRIGGER_TO_UNREACHABLE_MS = 5000;
+const RESET_AFTER_MS = 20000;
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const $ = (id) => document.getElementById(id);
+
+let lastTriggeredAtMs = null;
+let unreachableTimer = null;
+let resetTimer = null;
+let countdownInterval = null;
+let unsubResult = null;
+
+onAuthStateChanged(auth, (user) => {
+  if (user && user.uid === REGIS_ADMIN_UID) {
+    $("login").style.display = "none";
+    $("app").style.display = "block";
+    watchResult();
+    loadHistory();
+  } else {
+    if (user) signOut(auth); // connecte mais pas le bon compte : on le deconnecte
+    $("login").style.display = "flex";
+    $("app").style.display = "none";
+    if (unsubResult) { unsubResult(); unsubResult = null; }
+  }
+});
+
+async function login() {
+  $("loginError").style.display = "none";
+  try {
+    await signInWithEmailAndPassword(auth, $("loginEmail").value.trim(), $("loginPassword").value);
+  } catch (err) {
+    $("loginError").style.display = "block";
+  }
+}
+$("btnLogin").addEventListener("click", login);
+[$("loginEmail"), $("loginPassword")].forEach((el) =>
+  el.addEventListener("keydown", (e) => { if (e.key === "Enter") login(); })
+);
+$("btnLogout").addEventListener("click", () => signOut(auth));
+
+$("btnTrigger").addEventListener("click", async () => {
+  $("btnTrigger").disabled = true;
+  $("lines").innerHTML = "";
+  clearTimeout(unreachableTimer);
+  clearTimeout(resetTimer);
+  clearInterval(countdownInterval);
+
+  const now = Date.now();
+  lastTriggeredAtMs = now;
+
+  await setDoc(doc(db, "state", "peplink"), { triggeredAt: serverTimestamp() }, { merge: true });
+
+  startCountdown(now);
+
+  unreachableTimer = setTimeout(() => {
+    if ($("lines").innerHTML === "") {
+      $("lines").innerHTML = `<p class="unreachable-msg">⚠️ Téléphone injoignable</p>`;
+    }
+  }, TRIGGER_TO_UNREACHABLE_MS);
+
+  resetTimer = setTimeout(() => {
+    $("lines").innerHTML = "";
+    $("countdown").textContent = "";
+    $("btnTrigger").disabled = false;
+    loadHistory();
+  }, RESET_AFTER_MS);
+});
+
+function startCountdown(triggeredAtMs) {
+  countdownInterval = setInterval(() => {
+    const remaining = Math.max(0, Math.ceil((triggeredAtMs + RESET_AFTER_MS - Date.now()) / 1000));
+    $("countdown").textContent = remaining > 0 ? `Scan en cours… ${remaining}s` : "";
+    if (remaining <= 0) clearInterval(countdownInterval);
+  }, 250);
+}
+
+function watchResult() {
+  unsubResult = onSnapshot(doc(db, "state", "peplink_result"), (snap) => {
+    const data = snap.data();
+    if (!data || !lastTriggeredAtMs) return;
+    const updatedAtMs = data.updatedAt?.toMillis?.() ?? 0;
+    if (updatedAtMs < lastTriggeredAtMs) return; // resultat perime, anterieur au declenchement en cours
+    clearTimeout(unreachableTimer);
+    renderLines(data.lines);
+  });
+}
+
+function renderLines(lines) {
+  if (!lines || !lines.length) {
+    $("lines").innerHTML = `<p class="empty-msg">Aucune ligne détectée.</p>`;
+    return;
+  }
+  $("lines").innerHTML = lines.map((l) => `
+    <div class="line">
+      <span class="dot ${l.color}"></span>
+      <span class="line-info">
+        <span class="line-carrier">${l.carrier}</span>
+        ${typeof l.mbps === "number" ? `<span class="line-mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+      </span>
+    </div>
+  `).join("");
+}
+
+async function loadHistory() {
+  try {
+    const q = query(collection(db, "peplink_history"), orderBy("createdAt", "desc"), limit(5));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      $("history").innerHTML = `<p class="empty-msg">Aucun check pour l'instant.</p>`;
+      return;
+    }
+    $("history").innerHTML = snap.docs.map((d) => {
+      const h = d.data();
+      const date = h.createdAt?.toDate?.();
+      const timeLabel = date ? date.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "-";
+      const dots = (h.lines || []).map((l) => `<span class="dot ${l.color}"></span>`).join("");
+      return `<div class="history-item"><span class="history-time">${timeLabel}</span><span class="history-dots">${dots}</span></div>`;
+    }).join("");
+  } catch (err) {
+    console.warn("[regis] historique impossible :", err.message);
+  }
+}
+</script>
+
+</body>
+</html>
