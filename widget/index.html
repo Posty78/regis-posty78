@@ -145,9 +145,17 @@ function isRealCarrier(carrier) {
   return !!carrier && !carrier.startsWith("Erreur:");
 }
 
+// state/peplink_result est ecrit par n'importe quel compte Firebase anonyme
+// (auto-service) - "color" est insere dans un attribut class ci-dessous, donc
+// on le valide contre une enumeration fermee plutot que de l'utiliser tel
+// quel (sinon injection HTML possible via ce champ).
+function safeColor(c) {
+  return ["green", "orange", "red"].includes(c) ? c : "red";
+}
+
 function rowHtml(label, icon, data) {
   const usable = data && isRealCarrier(data.carrier);
-  const color = usable ? data.color : "red";
+  const color = safeColor(usable ? data.color : "red");
   const mbps = usable && typeof data.mbps === "number" ? data.mbps : null;
   return `
     <div class="hud-peplink__line">

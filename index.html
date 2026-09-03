@@ -148,6 +148,20 @@ const db = getFirestore(app);
 
 const $ = (id) => document.getElementById(id);
 
+// state/peplink_result et peplink_history sont ecrits par n'importe quel
+// compte Firebase anonyme (auto-service, voir regles Firestore) - jamais
+// injecter ces champs tels quels dans innerHTML sans echapper le texte libre
+// (carrier) et valider les valeurs censees etre une enumeration fermee
+// (color, mode), sous peine d'injection HTML/JS stockee.
+function esc(str) {
+  return String(str ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[c]);
+}
+function safeColor(c) {
+  return ["green", "orange", "red"].includes(c) ? c : "red";
+}
+
 let lastTriggeredAtMs = null;
 let unreachableTimer = null;
 let resetTimer = null;
@@ -252,10 +266,10 @@ function renderLines(lines) {
   }
   $("lines").innerHTML = lines.map((l) => `
     <div class="line">
-      <span class="dot ${l.color}"></span>
+      <span class="dot ${safeColor(l.color)}"></span>
       <span class="line-info">
-        <span class="line-carrier">${l.carrier}</span>
-        ${typeof l.mbps === "number" ? `<span class="line-mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+        <span class="line-carrier">${esc(l.carrier)}</span>
+        ${typeof l.mbps === "number" ? `<span class="line-mbps">${esc(l.mbps.toFixed(1))} Mbps</span>` : ""}
       </span>
     </div>
   `).join("");
@@ -275,12 +289,12 @@ async function loadHistory() {
       const h = d.data();
       const date = h.createdAt?.toDate?.();
       const timeLabel = date ? date.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "-";
-      const modeLabel = MODE_LABELS[h.mode] || h.mode || "-";
+      const modeLabel = MODE_LABELS[h.mode] || esc(h.mode) || "-";
       const lines = (h.lines || []).map((l) => `
         <div class="history-line">
-          <span class="dot ${l.color}"></span>
-          <span class="history-line-carrier">${l.carrier}</span>
-          ${typeof l.mbps === "number" ? `<span class="history-line-mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+          <span class="dot ${safeColor(l.color)}"></span>
+          <span class="history-line-carrier">${esc(l.carrier)}</span>
+          ${typeof l.mbps === "number" ? `<span class="history-line-mbps">${esc(l.mbps.toFixed(1))} Mbps</span>` : ""}
         </div>
       `).join("") || `<p class="empty-msg" style="padding:4px 0;">Aucune ligne.</p>`;
       return `
