@@ -21,16 +21,16 @@
   }
   .hud-peplink.is-visible{ opacity:1; }
   .hud-peplink__title{ font-family:"Rajdhani",sans-serif; font-weight:700; font-size:15px; letter-spacing:0.2em; color:#fff; text-align:center; }
-  .hud-peplink__lines{ display:flex; flex-direction:column; gap:8px; margin-top:2px; }
-  .hud-peplink__line{ display:flex; align-items:center; gap:10px; }
-  .hud-peplink__dot{ width:12px; height:12px; border-radius:50%; box-shadow:0 0 6px currentColor; flex-shrink:0; }
-  .hud-peplink__dot--green{ background:#2ecc40; color:#2ecc40; }
-  .hud-peplink__dot--orange{ background:#ffab00; color:#ffab00; }
-  .hud-peplink__dot--red{ background:#e0263f; color:#e0263f; }
-  .hud-peplink__info{ display:flex; align-items:baseline; gap:10px; min-width:0; }
-  .hud-peplink__carrier{ font-family:"Teko",sans-serif; font-weight:600; font-size:20px; color:#fff; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px; }
+  .hud-peplink__lines{ display:flex; flex-direction:column; gap:10px; margin-top:2px; }
+  .hud-peplink__line{ display:flex; align-items:center; gap:12px; }
+  .hud-peplink__icon{ width:22px; height:22px; flex-shrink:0; filter:drop-shadow(0 0 4px currentColor); transition:color .3s ease; }
+  .hud-peplink__icon svg{ width:100%; height:100%; display:block; }
+  .hud-peplink__icon--green{ color:#2ecc40; }
+  .hud-peplink__icon--orange{ color:#ffab00; }
+  .hud-peplink__icon--red{ color:#e0263f; }
+  .hud-peplink__info{ display:flex; flex-direction:column; line-height:1.15; min-width:0; }
+  .hud-peplink__carrier{ font-family:"Teko",sans-serif; font-weight:600; font-size:19px; color:#fff; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:220px; }
   .hud-peplink__mbps{ font-family:"Rajdhani",sans-serif; font-weight:600; font-size:13px; color:rgba(255,255,255,0.6); white-space:nowrap; }
-  .hud-peplink__empty{ font-family:"Teko",sans-serif; font-size:18px; color:rgba(255,255,255,0.6); text-align:center; }
 </style>
 </head>
 <body>
@@ -101,6 +101,26 @@ const DEMO_SCENARIOS = [
   { lines: [{ carrier: "Erreur: login Peplink injoignable", mbps: null, color: "red" }] },
 ];
 
+// Icones (traits generiques, pas les vrais logos operateurs - question de
+// droits sur les marques) : tour-relais pour les lignes filaires/Peplink et
+// le wifi generique, carte SIM pour les donnees mobile, parabole pour Starlink.
+const ICON_TOWER = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="2" y="14" width="4" height="8" rx="1"/><rect x="10" y="8" width="4" height="14" rx="1"/><rect x="18" y="3" width="4" height="19" rx="1"/></svg>`;
+const ICON_WIFI = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M2 8.5a16 16 0 0 1 20 0"/><path d="M5.5 12.7a11 11 0 0 1 13 0"/><path d="M9 17a6 6 0 0 1 6 0"/><circle cx="12" cy="20.5" r="1.3" fill="currentColor" stroke="none"/></svg>`;
+const ICON_SIM = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M7 3h6l6 6v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M9 12h2M13 12h2M9 16h6"/></svg>`;
+const ICON_SATELLITE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a12 12 0 0 1 12 12"/><path d="M3 5a18 18 0 0 1 18 18"/><circle cx="3" cy="17" r="2" fill="currentColor" stroke="none"/><path d="M14 6l6-2-2 6-4 2-2-4z"/></svg>`;
+
+const WAN_TEMPLATE = [
+  { key: "Bouygues", label: "Bouygues", icon: ICON_TOWER },
+  { key: "Orange", label: "Orange", icon: ICON_TOWER },
+  { key: "SFR", label: "SFR", icon: ICON_TOWER },
+  { key: "Free", label: "Free", icon: ICON_TOWER },
+];
+const WIFI_FALLBACK = { key: "wifi", label: "Wifi", icon: ICON_WIFI };
+const EXTRA_TEMPLATE = [
+  { label: "Données mobile", icon: ICON_SIM, match: (c) => (c || "").startsWith("Données mobile") },
+  { label: "Starlink", icon: ICON_SATELLITE, match: (c) => c === "Starlink" },
+];
+
 const el = document.getElementById("widget");
 const linesEl = document.getElementById("lines");
 
@@ -110,20 +130,51 @@ let hideTimer = null;
 let demoInterval = null;
 let isDemoActive = false;
 
-function render(lines) {
-  if (!lines || !lines.length) {
-    linesEl.innerHTML = `<div class="hud-peplink__empty">En attente du téléphone…</div>`;
-    return;
-  }
-  linesEl.innerHTML = lines.map((l) => `
+function isRealCarrier(carrier) {
+  return !!carrier && !carrier.startsWith("Erreur:");
+}
+
+function rowHtml(label, icon, data) {
+  const usable = data && isRealCarrier(data.carrier);
+  const color = usable ? data.color : "red";
+  const mbps = usable && typeof data.mbps === "number" ? data.mbps : null;
+  return `
     <div class="hud-peplink__line">
-      <span class="hud-peplink__dot hud-peplink__dot--${l.color}"></span>
+      <span class="hud-peplink__icon hud-peplink__icon--${color}">${icon}</span>
       <span class="hud-peplink__info">
-        <span class="hud-peplink__carrier">${l.carrier}</span>
-        ${typeof l.mbps === "number" ? `<span class="hud-peplink__mbps">${l.mbps.toFixed(1)} Mbps</span>` : ""}
+        <span class="hud-peplink__carrier">${label}</span>
+        <span class="hud-peplink__mbps">${mbps != null ? mbps.toFixed(1) + " Mbps" : "-- Mbps"}</span>
       </span>
     </div>
-  `).join("");
+  `;
+}
+
+// Gabarit toujours affiche en entier (rouge par defaut tant qu'aucune donnee
+// ne correspond) - jamais de texte "en attente"/"erreur", jamais de ligne
+// masquee. Seul le bloc du haut change : les 4 WAN Peplink si detectes, sinon
+// une seule ligne "Wifi" generique (voir WIFI_FALLBACK).
+function render(lines) {
+  lines = lines || [];
+  const hasWan = WAN_TEMPLATE.some((t) => lines.some((l) => l.carrier === t.key));
+  const topTemplate = hasWan ? WAN_TEMPLATE : [WIFI_FALLBACK];
+
+  const rows = topTemplate.map((t) => {
+    const data = t.key === "wifi"
+      ? lines.find((l) =>
+          isRealCarrier(l.carrier) &&
+          !WAN_TEMPLATE.some((w) => w.key === l.carrier) &&
+          !EXTRA_TEMPLATE.some((e) => e.match(l.carrier))
+        )
+      : lines.find((l) => l.carrier === t.key);
+    return rowHtml(t.label, t.icon, data);
+  });
+
+  for (const t of EXTRA_TEMPLATE) {
+    const data = lines.find((l) => t.match(l.carrier));
+    rows.push(rowHtml(t.label, t.icon, data));
+  }
+
+  linesEl.innerHTML = rows.join("");
 }
 
 function show() {
